@@ -1,0 +1,1052 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Retro Web Tracker</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- PWA Enhancements -->
+    <meta name="theme-color" content="#e94560">
+    <link rel="apple-touch-icon" href="https://placehold.co/180x180/e94560/FFFFFF/png?text=Tracker">
+
+    <style>
+        /* Using a classic monospace font for the tracker vibe */
+        @import url('https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@400;700&display=swap');
+        
+        body {
+            font-family: 'Roboto Mono', monospace;
+            color: #E0E0E0;
+            background-color: #1a1a2e;
+        }
+
+        /* General styles for custom elements */
+        input, select, button {
+            background-color: #16213e;
+            border: 1px solid #0f3460;
+            color: #E0E0E0;
+            border-radius: 4px;
+            padding: 5px 8px;
+        }
+
+        button {
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        
+    </style>
+</head>
+<body class="bg-gray-900 text-gray-200 p-2 sm:p-4">
+
+    <div class="container mx-auto max-w-7xl space-y-4">
+        <h1 class="text-2xl sm:text-3xl font-bold text-center text-pink-500">Retro Web Tracker</h1>
+
+        <!-- Web Components will be placed here -->
+        <control-panel></control-panel>
+        <structure-controls></structure-controls>
+        <effects-panel></effects-panel>
+
+        <div class="flex flex-col md:flex-row gap-4">
+            <instrument-panel class="w-full md:w-1/4"></instrument-panel>
+            <pattern-editor-view class="w-full md:w-3/4"></pattern-editor-view>
+        </div>
+
+        <status-bar></status-bar>
+    </div>
+
+    <!-- TEMPLATES FOR WEB COMPONENTS -->
+    <template id="control-panel-template">
+        <style>
+            .panel {
+                background-color: #2c3e50; /* A slightly different shade */
+                padding: 1rem;
+                border-radius: 0.5rem;
+                box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                gap: 1rem;
+            }
+            @media (min-width: 640px) {
+                .panel {
+                    flex-direction: row;
+                    justify-content: space-between;
+                }
+            }
+            .button-group {
+                display: flex;
+                flex-wrap: wrap;
+                justify-content: center;
+                gap: 1rem;
+            }
+        </style>
+        <div class="panel">
+            <div class="button-group">
+                <button id="play-btn" class="px-4 py-2 bg-pink-500 text-white hover:bg-pink-600 rounded font-bold">Play</button>
+                <button id="stop-btn" class="px-4 py-2 bg-pink-500 text-white hover:bg-pink-600 rounded font-bold">Stop</button>
+                <button id="export-btn" class="px-4 py-2 bg-pink-500 text-white hover:bg-pink-600 rounded font-bold">Export WAV</button>
+            </div>
+            <div class="flex items-center gap-2">
+                <label for="bpm-slider">BPM:</label>
+                <input type="range" id="bpm-slider" min="30" max="240" value="125" class="w-32">
+                <span id="bpm-value">125</span>
+            </div>
+             <div class="flex items-center gap-2">
+                <label for="swing-slider">Swing:</label>
+                <input type="range" id="swing-slider" min="50" max="75" value="50" class="w-32">
+                <span id="swing-value">50%</span>
+            </div>
+        </div>
+    </template>
+    
+    <template id="structure-controls-template">
+        <style>
+             .panel {
+                background-color: #2c3e50;
+                padding: 1rem;
+                border-radius: 0.5rem;
+                box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+                display: grid;
+                grid-template-columns: 1fr;
+                gap: 1rem;
+            }
+            @media (min-width: 768px) { .panel { grid-template-columns: repeat(2, 1fr); } }
+            @media (min-width: 1024px) { .panel { grid-template-columns: repeat(4, 1fr); } }
+            label { display: block; margin-bottom: 0.25rem; font-size: 0.875rem; }
+            input { width: 100%; background-color: #1a1a2e; }
+        </style>
+        <div class="panel">
+            <div>
+                <label for="pattern-length">Pattern Length:</label>
+                <input type="number" id="pattern-length" value="64" min="1" max="256">
+            </div>
+            <div>
+                <label for="track-count">Tracks:</label>
+                <input type="number" id="track-count" value="8" min="1" max="16">
+            </div>
+            <div>
+                <label for="current-pattern">Current Pattern:</label>
+                <input type="number" id="current-pattern" value="0" min="0" max="99">
+            </div>
+             <div>
+                <label for="pattern-sequence">Sequence (CSV):</label>
+                <input type="text" id="pattern-sequence" value="0">
+            </div>
+        </div>
+    </template>
+
+    <template id="effects-panel-template">
+        <style>
+             .panel {
+                background-color: #2c3e50;
+                padding: 1rem;
+                border-radius: 0.5rem;
+                box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+                display: grid;
+                grid-template-columns: 1fr;
+                gap: 1rem;
+                align-items: center;
+            }
+            @media (min-width: 768px) { .panel { grid-template-columns: repeat(3, 1fr); } }
+            label { font-size: 0.875rem; }
+            .control-group { display: flex; align-items: center; gap: 0.5rem; justify-content: center; }
+            input[type=range] { width: 8rem; }
+        </style>
+        <div class="panel">
+            <div class="control-group">
+                <label for="reverb-slider">Reverb:</label>
+                <input type="range" id="reverb-slider" min="0" max="1" value="0" step="0.01" class="w-32">
+                <span id="reverb-value">0%</span>
+            </div>
+            <div class="control-group">
+                <label for="echo-slider">Echo:</label>
+                <input type="range" id="echo-slider" min="0" max="1" value="0" step="0.01" class="w-32">
+                <span id="echo-value">0%</span>
+            </div>
+             <div class="control-group">
+                <label for="volume-slider">Volume:</label>
+                <input type="range" id="volume-slider" min="0" max="1" value="0.8" step="0.01" class="w-32">
+                <span id="volume-value">80%</span>
+            </div>
+        </div>
+    </template>
+
+    <template id="instrument-panel-template">
+         <style>
+            .panel {
+                background-color: #2c3e50;
+                padding: 1rem;
+                border-radius: 0.5rem;
+                box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            }
+            h2 { font-size: 1.25rem; font-weight: bold; margin-bottom: 0.5rem; color: #e94560; }
+            label { display: block; font-size: 0.875rem; }
+            input[type=file], select { width: 100%; background-color: #1a1a2e; margin-top: 0.25rem; }
+            #instrument-list { margin-top: 1rem; space-y: 0.25rem; }
+            .instrument-slot {
+                padding: 0.5rem; border-radius: 0.25rem; font-size: 0.875rem; cursor: pointer;
+                border: 1px solid transparent; background-color: #1a1a2e;
+            }
+            .instrument-slot.selected { background-color: #e94560; color: #FFF; }
+         </style>
+        <div class="panel">
+            <h2>Instruments & Scales</h2>
+            <div class="space-y-2">
+                <label for="sample-upload">Load Sample (WAV):</label>
+                <input type="file" id="sample-upload" accept=".wav" multiple>
+            </div>
+            <div id="instrument-list"></div>
+            <div class="mt-4 space-y-2">
+                <label for="scala-upload">Load Scala Tuning (.scl):</label>
+                <input type="file" id="scala-upload" accept=".scl">
+                <select id="scale-select">
+                    <option value="-1">12-TET (Default)</option>
+                </select>
+            </div>
+        </div>
+    </template>
+
+    <template id="pattern-editor-view-template">
+        <style>
+            .panel {
+                background-color: #2c3e50; padding: 1rem; border-radius: 0.5rem;
+                box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+                overflow: hidden;
+            }
+            h2 { font-size: 1.25rem; font-weight: bold; margin-bottom: 0.5rem; color: #e94560; }
+            .tracker-grid {
+                display: grid;
+                grid-template-columns: 50px repeat(var(--tracks, 8), 1fr);
+                gap: 2px;
+                background-color: #16213e; padding: 5px; border-radius: 8px;
+                overflow-x: auto;
+            }
+            .grid-header, .grid-cell, .row-number {
+                background-color: #0f3460; padding: 4px 2px; text-align: center;
+                font-size: 12px; border-radius: 2px; white-space: nowrap;
+            }
+            .row-number { background-color: #16213e; color: #a0a0a0; }
+            .grid-cell { background-color: #1a1a2e; cursor: pointer; height: 20px; }
+            .grid-cell.active-row { background-color: #3e5879; }
+            .grid-cell.cursor { outline: 2px solid #e94560; z-index: 10; }
+        </style>
+        <div class="panel">
+            <h2>Pattern Editor</h2>
+            <div class="overflow-auto">
+               <div id="pattern-editor" class="tracker-grid"></div>
+            </div>
+        </div>
+    </template>
+
+    <template id="status-bar-template">
+        <style>
+            .status-bar {
+                text-align: center; font-size: 0.75rem; color: #888; margin-top: 1rem;
+            }
+        </style>
+        <div class="status-bar">
+            Ready. AudioContext not started. Click anywhere to start.
+        </div>
+    </template>
+
+    <script>
+    // --- WEB COMPONENT DEFINITIONS ---
+
+    class ControlPanel extends HTMLElement {
+        constructor() {
+            super();
+            this.attachShadow({ mode: 'open' });
+            const template = document.getElementById('control-panel-template').content;
+            this.shadowRoot.appendChild(template.cloneNode(true));
+        }
+
+        connectedCallback() {
+            this.shadowRoot.getElementById('play-btn').addEventListener('click', () => this.dispatchEvent(new CustomEvent('play')));
+            this.shadowRoot.getElementById('stop-btn').addEventListener('click', () => this.dispatchEvent(new CustomEvent('stop')));
+            this.shadowRoot.getElementById('export-btn').addEventListener('click', () => this.dispatchEvent(new CustomEvent('export')));
+            this.shadowRoot.getElementById('bpm-slider').addEventListener('input', (e) => {
+                this.shadowRoot.getElementById('bpm-value').textContent = e.target.value;
+                this.dispatchEvent(new CustomEvent('bpmchange', { detail: { bpm: e.target.value } }));
+            });
+            this.shadowRoot.getElementById('swing-slider').addEventListener('input', (e) => {
+                this.shadowRoot.getElementById('swing-value').textContent = `${e.target.value}%`;
+                this.dispatchEvent(new CustomEvent('swingchange', { detail: { swing: e.target.value } }));
+            });
+        }
+    }
+    customElements.define('control-panel', ControlPanel);
+
+    class StructureControls extends HTMLElement {
+        constructor() { super(); this.attachShadow({ mode: 'open' }); }
+        connectedCallback() {
+            const template = document.getElementById('structure-controls-template').content;
+            this.shadowRoot.appendChild(template.cloneNode(true));
+            this.shadowRoot.getElementById('pattern-length').addEventListener('change', e => this.dispatchEvent(new CustomEvent('configchange', { detail: { key: 'patternLength', value: parseInt(e.target.value) } })));
+            this.shadowRoot.getElementById('track-count').addEventListener('change', e => this.dispatchEvent(new CustomEvent('configchange', { detail: { key: 'trackCount', value: parseInt(e.target.value) } })));
+            this.shadowRoot.getElementById('current-pattern').addEventListener('change', e => this.dispatchEvent(new CustomEvent('configchange', { detail: { key: 'currentPattern', value: parseInt(e.target.value) } })));
+            this.shadowRoot.getElementById('pattern-sequence').addEventListener('change', e => this.dispatchEvent(new CustomEvent('configchange', { detail: { key: 'sequence', value: e.target.value } })));
+        }
+        
+        getValues() {
+            return {
+                patternLength: parseInt(this.shadowRoot.getElementById('pattern-length').value),
+                trackCount: parseInt(this.shadowRoot.getElementById('track-count').value),
+                currentPattern: parseInt(this.shadowRoot.getElementById('current-pattern').value),
+                sequence: this.shadowRoot.getElementById('pattern-sequence').value,
+            }
+        }
+
+        setCurrentPattern(patternNum) {
+            this.shadowRoot.getElementById('current-pattern').value = patternNum;
+        }
+    }
+    customElements.define('structure-controls', StructureControls);
+    
+    class EffectsPanel extends HTMLElement {
+        constructor() { super(); this.attachShadow({ mode: 'open' }); }
+        connectedCallback() {
+            const template = document.getElementById('effects-panel-template').content;
+            this.shadowRoot.appendChild(template.cloneNode(true));
+            this.shadowRoot.getElementById('reverb-slider').addEventListener('input', e => {
+                this.shadowRoot.getElementById('reverb-value').textContent = `${Math.round(e.target.value * 100)}%`;
+                this.dispatchEvent(new CustomEvent('effectchange', { detail: { effect: 'reverb', value: parseFloat(e.target.value) } }));
+            });
+            this.shadowRoot.getElementById('echo-slider').addEventListener('input', e => {
+                this.shadowRoot.getElementById('echo-value').textContent = `${Math.round(e.target.value * 100)}%`;
+                this.dispatchEvent(new CustomEvent('effectchange', { detail: { effect: 'echo', value: parseFloat(e.target.value) } }));
+            });
+            this.shadowRoot.getElementById('volume-slider').addEventListener('input', e => {
+                this.shadowRoot.getElementById('volume-value').textContent = `${Math.round(e.target.value * 100)}%`;
+                this.dispatchEvent(new CustomEvent('effectchange', { detail: { effect: 'volume', value: parseFloat(e.target.value) } }));
+            });
+        }
+    }
+    customElements.define('effects-panel', EffectsPanel);
+
+    class InstrumentPanel extends HTMLElement {
+        constructor() { super(); this.attachShadow({ mode: 'open' }); }
+        connectedCallback() {
+            const template = document.getElementById('instrument-panel-template').content;
+            this.shadowRoot.appendChild(template.cloneNode(true));
+            this.shadowRoot.getElementById('sample-upload').addEventListener('change', e => this.dispatchEvent(new CustomEvent('samplesload', { detail: { files: e.target.files } })));
+            this.shadowRoot.getElementById('scala-upload').addEventListener('change', e => this.dispatchEvent(new CustomEvent('scalaload', { detail: { file: e.target.files[0] } })));
+            this.shadowRoot.getElementById('scale-select').addEventListener('change', e => this.dispatchEvent(new CustomEvent('scalechange', { detail: { value: e.target.value } })));
+            this.shadowRoot.getElementById('instrument-list').addEventListener('click', e => {
+                 if(e.target.classList.contains('instrument-slot')) {
+                    this.dispatchEvent(new CustomEvent('instrumentselect', { detail: { id: parseInt(e.target.dataset.instrumentId) } }));
+                }
+            });
+        }
+
+        render(instruments, selectedInstrument) {
+            const list = this.shadowRoot.getElementById('instrument-list');
+            list.innerHTML = '';
+            for(let i = 0; i < 32; i++) {
+                const slot = document.createElement('div');
+                slot.className = 'instrument-slot';
+                slot.textContent = `${i.toString(16).toUpperCase().padStart(2, '0')}: ${instruments[i] ? instruments[i].name : '...'}`;
+                slot.dataset.instrumentId = i;
+                if (i === selectedInstrument) slot.classList.add('selected');
+                list.appendChild(slot);
+            }
+        }
+        
+        addScale(scale) {
+             const option = document.createElement('option');
+             option.value = scale.id;
+             option.textContent = scale.name;
+             this.shadowRoot.getElementById('scale-select').appendChild(option);
+             this.shadowRoot.getElementById('scale-select').value = scale.id;
+        }
+    }
+    customElements.define('instrument-panel', InstrumentPanel);
+
+    class PatternEditorView extends HTMLElement {
+        constructor() { super(); this.attachShadow({ mode: 'open' }); }
+        connectedCallback() {
+            const template = document.getElementById('pattern-editor-view-template').content;
+            this.shadowRoot.appendChild(template.cloneNode(true));
+            this.shadowRoot.getElementById('pattern-editor').addEventListener('click', e => {
+                const cell = e.target.closest('.grid-cell');
+                if(cell) {
+                    this.dispatchEvent(new CustomEvent('cursorpos', { detail: { row: parseInt(cell.dataset.row), track: parseInt(cell.dataset.track) } }));
+                }
+            });
+        }
+        
+        render(state, NOTE_NAMES) {
+            const patternEditor = this.shadowRoot.getElementById('pattern-editor');
+            patternEditor.innerHTML = '';
+            patternEditor.style.setProperty('--tracks', state.trackCount);
+            
+            const headerRow = document.createElement('div');
+            headerRow.className = 'grid-header';
+            headerRow.textContent = 'Row';
+            patternEditor.appendChild(headerRow);
+            for (let i = 0; i < state.trackCount; i++) {
+                const headerCell = document.createElement('div');
+                headerCell.className = 'grid-header';
+                headerCell.textContent = `Track ${i + 1}`;
+                patternEditor.appendChild(headerCell);
+            }
+
+            const currentPatternData = state.patterns[state.currentPattern] || { length: state.patternLength, tracks: []};
+            for (let row = 0; row < currentPatternData.length; row++) {
+                const rowNum = document.createElement('div');
+                rowNum.className = 'row-number';
+                rowNum.textContent = row.toString(16).toUpperCase().padStart(2, '0');
+                patternEditor.appendChild(rowNum);
+
+                for (let track = 0; track < state.trackCount; track++) {
+                    const cell = document.createElement('div');
+                    cell.className = 'grid-cell';
+                    cell.dataset.row = row;
+                    cell.dataset.track = track;
+
+                    if (row === state.currentRow && state.playing) cell.classList.add('active-row');
+                    if (row === state.cursor.row && track === state.cursor.track) cell.classList.add('cursor');
+                    
+                    const noteData = currentPatternData.tracks[track]?.[row];
+                    cell.textContent = this.formatNoteData(noteData, NOTE_NAMES);
+                    patternEditor.appendChild(cell);
+                }
+            }
+        }
+
+        formatNoteData(noteData, NOTE_NAMES) {
+            if (!noteData) return '--- -- --';
+            const noteStr = noteData.note !== null ? `${NOTE_NAMES[noteData.note % 12]}${Math.floor(noteData.note / 12)}` : '---';
+            const instStr = noteData.instrument !== null ? noteData.instrument.toString(16).toUpperCase().padStart(2, '0') : '--';
+            return `${noteStr.padEnd(3)} ${instStr} --`;
+        }
+
+        updateCell(row, track, noteData, NOTE_NAMES) {
+            const cell = this.shadowRoot.querySelector(`.grid-cell[data-row='${row}'][data-track='${track}']`);
+            if (cell) cell.textContent = this.formatNoteData(noteData, NOTE_NAMES);
+        }
+
+        updateCursor(cursor, oldCursor) {
+             const oldCell = this.shadowRoot.querySelector(`.grid-cell[data-row='${oldCursor.row}'][data-track='${oldCursor.track}']`);
+             if(oldCell) oldCell.classList.remove('cursor');
+             const newCell = this.shadowRoot.querySelector(`.grid-cell[data-row='${cursor.row}'][data-track='${cursor.track}']`);
+             if (newCell) {
+                 newCell.classList.add('cursor');
+                 newCell.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+             }
+        }
+
+        updateActiveRow(newRow, oldRow) {
+             this.shadowRoot.querySelectorAll(`.grid-cell[data-row='${oldRow}']`).forEach(c => c.classList.remove('active-row'));
+             this.shadowRoot.querySelectorAll(`.grid-cell[data-row='${newRow}']`).forEach(c => c.classList.add('active-row'));
+        }
+    }
+    customElements.define('pattern-editor-view', PatternEditorView);
+
+    class StatusBar extends HTMLElement {
+        constructor() { super(); this.attachShadow({ mode: 'open' }); }
+        connectedCallback() {
+            const template = document.getElementById('status-bar-template').content;
+            this.shadowRoot.appendChild(template.cloneNode(true));
+        }
+        
+        update(text) {
+            this.shadowRoot.querySelector('.status-bar').textContent = text;
+        }
+    }
+    customElements.define('status-bar', StatusBar);
+    
+    // --- MAIN APPLICATION LOGIC ---
+    document.addEventListener('DOMContentLoaded', () => {
+        // --- STATE MANAGEMENT ---
+        let audioContext;
+        let mainGain;
+        let reverb, reverbSend, echo, echoSend, echoFeedback;
+        const instruments = []; // Will hold AudioBuffers
+        const scales = [{ name: '12-TET (Default)', ratios: Array(128).fill(0).map((_, i) => Math.pow(2, i / 12)) }];
+        let selectedScaleIndex = -1;
+        
+        let state = {
+            playing: false,
+            swingAmount: 50,
+            bpm: 125,
+            currentRow: 0,
+            currentPattern: 0,
+            currentSequencePos: 0,
+            patternLength: 64,
+            trackCount: 8,
+            selectedInstrument: 0,
+            cursor: { track: 0, row: 0, column: 0 },
+            nextNoteTime: 0,
+            sequence: [0],
+            patterns: [{
+                length: 64,
+                tracks: Array(16).fill(0).map(() => Array(256).fill(null))
+            }],
+        };
+
+        const NOTE_NAMES = ["C-", "C#", "D-", "D#", "E-", "F-", "F#", "G-", "G#", "A-", "A#", "B-"];
+        const KEY_TO_NOTE = { 'z':0,'s':1,'x':2,'d':3,'c':4,'v':5,'g':6,'b':7,'h':8,'n':9,'j':10,'m':11,',':12,'l':13,'.':14,';':15,'/':16,'q':12,'2':13,'w':14,'3':15,'e':16,'r':17,'5':18,'t':19,'6':20,'y':21,'7':22,'u':23,'i':24,'9':25,'o':26,'0':27,'p':28 };
+        let currentOctave = 4;
+
+        // --- DOM ELEMENTS (WEB COMPONENTS) ---
+        const controlPanel = document.querySelector('control-panel');
+        const structureControls = document.querySelector('structure-controls');
+        const effectsPanel = document.querySelector('effects-panel');
+        const instrumentPanel = document.querySelector('instrument-panel');
+        const patternEditorView = document.querySelector('pattern-editor-view');
+        const statusBar = document.querySelector('status-bar');
+
+        // --- AUDIO INITIALIZATION ---
+        function initAudio() {
+            if (audioContext) return;
+            try {
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                mainGain = audioContext.createGain();
+                mainGain.gain.value = 0.8;
+                mainGain.connect(audioContext.destination);
+
+                // Setup Effects Chain
+                reverb = audioContext.createConvolver();
+                reverb.buffer = createImpulseResponse(audioContext);
+                reverbSend = audioContext.createGain();
+                reverbSend.gain.value = 0;
+                reverbSend.connect(reverb).connect(mainGain);
+                
+                echo = audioContext.createDelay(1.0);
+                echo.delayTime.value = 60.0 / 125 * 0.75; // Dotted 8th note at 125 BPM
+                echoSend = audioContext.createGain();
+                echoSend.gain.value = 0;
+                echoFeedback = audioContext.createGain();
+                echoFeedback.gain.value = 0.4;
+
+                echoSend.connect(echo);
+                echo.connect(echoFeedback);
+                echoFeedback.connect(echo);
+                echo.connect(mainGain);
+
+                statusBar.update(`AudioContext is running. Sample rate: ${audioContext.sampleRate}Hz.`);
+            } catch (e) {
+                statusBar.update('Web Audio API is not supported in this browser.');
+                console.error(e);
+            }
+        }
+        document.body.addEventListener('click', initAudio, { once: true });
+        
+        // --- COMPONENT EVENT LISTENERS ---
+        controlPanel.addEventListener('play', () => {
+            initAudio();
+            if (!audioContext || state.playing) return;
+            state.playing = true;
+            state.nextNoteTime = audioContext.currentTime;
+            scheduler();
+            statusBar.update("Playback started.");
+        });
+
+        controlPanel.addEventListener('stop', () => {
+            state.playing = false;
+            clearTimeout(schedulerTimer);
+            state.currentRow = 0;
+            state.currentSequencePos = 0;
+            state.currentPattern = state.sequence[0] || 0;
+            patternEditorView.render(state, NOTE_NAMES);
+            statusBar.update("Playback stopped.");
+        });
+
+        controlPanel.addEventListener('export', () => {
+             if (!audioContext) {
+                statusBar.update("AudioContext not ready for export."); return;
+            }
+            exportAsWav();
+        });
+
+        controlPanel.addEventListener('bpmchange', (e) => {
+            state.bpm = parseInt(e.detail.bpm);
+            if(echo) echo.delayTime.value = 60.0 / state.bpm * 0.75; // Recalculate delay time
+        });
+        
+        controlPanel.addEventListener('swingchange', (e) => {
+            state.swingAmount = parseInt(e.detail.swing);
+        });
+        
+        effectsPanel.addEventListener('effectchange', e => {
+            const { effect, value } = e.detail;
+            if (!audioContext) return;
+            switch(effect) {
+                case 'reverb': reverbSend.gain.setValueAtTime(value, audioContext.currentTime); break;
+                case 'echo': echoSend.gain.setValueAtTime(value, audioContext.currentTime); break;
+                case 'volume': mainGain.gain.setValueAtTime(value, audioContext.currentTime); break;
+            }
+        });
+
+        structureControls.addEventListener('configchange', (e) => {
+            const { key, value } = e.detail;
+            if (key === 'sequence') {
+                state.sequence = value.split(',').map(Number).filter(n => !isNaN(n));
+            } else if (key === 'currentPattern') {
+                let newPattern = value;
+                if (!state.patterns[newPattern]) {
+                    state.patterns[newPattern] = createNewPattern(state.patternLength);
+                }
+                state.currentPattern = newPattern;
+                patternEditorView.render(state, NOTE_NAMES);
+            } else {
+                 state[key] = value;
+                 const pattern = state.patterns[state.currentPattern];
+                 if(key === 'patternLength' && pattern) pattern.length = value;
+                 patternEditorView.render(state, NOTE_NAMES);
+            }
+        });
+        
+        instrumentPanel.addEventListener('samplesload', (e) => handleSampleUpload(e.detail.files));
+        instrumentPanel.addEventListener('scalaload', (e) => handleScalaUpload(e.detail.file));
+        instrumentPanel.addEventListener('scalechange', (e) => selectedScaleIndex = parseInt(e.detail.value));
+        instrumentPanel.addEventListener('instrumentselect', (e) => {
+            state.selectedInstrument = e.detail.id;
+            instrumentPanel.render(instruments, state.selectedInstrument);
+        });
+        
+        patternEditorView.addEventListener('cursorpos', (e) => {
+            const oldCursor = { ...state.cursor };
+            state.cursor.row = e.detail.row;
+            state.cursor.track = e.detail.track;
+            patternEditorView.updateCursor(state.cursor, oldCursor);
+        });
+
+        // --- SEQUENCER & SCHEDULER ---
+        let schedulerTimer;
+        function scheduler() {
+             while (state.nextNoteTime < audioContext.currentTime + 0.1) {
+                const oldRow = state.currentRow;
+                playStep(state.nextNoteTime);
+                
+                // --- Calculate time for next tick with swing ---
+                const secondsPerTick = (60.0 / state.bpm) / 4.0;
+                let tickDuration = secondsPerTick;
+                const swingRatio = state.swingAmount / 100.0; // a value from 0.50 to 0.75
+
+                // If we are on an even row (0, 2, 4...), we are the first 16th in an 8th note pair.
+                if (state.currentRow % 2 === 0) {
+                    // This tick should last longer
+                    tickDuration = (secondsPerTick * 2) * swingRatio;
+                } else { // If we are on an odd row (1, 3, 5...), we are the second 16th.
+                    // This tick should be shorter to compensate.
+                    tickDuration = (secondsPerTick * 2) * (1.0 - swingRatio);
+                }
+                
+                state.nextNoteTime += tickDuration;
+
+                state.currentRow++;
+                if (state.currentRow >= state.patterns[state.currentPattern].length) {
+                    state.currentRow = 0;
+                    state.currentSequencePos = (state.currentSequencePos + 1) % state.sequence.length;
+                    state.currentPattern = state.sequence[state.currentSequencePos];
+                    structureControls.setCurrentPattern(state.currentPattern);
+                }
+                requestAnimationFrame(() => patternEditorView.updateActiveRow(state.currentRow, oldRow));
+            }
+            if (state.playing) schedulerTimer = setTimeout(scheduler, 25);
+        }
+
+        function playStep(time) {
+            const pattern = state.patterns[state.currentPattern];
+            if (!pattern) return;
+            for(let track = 0; track < state.trackCount; track++) {
+                const noteData = pattern.tracks[track][state.currentRow];
+                if (noteData && noteData.note !== null && instruments[noteData.instrument]) {
+                    playSample(noteData.instrument, noteData.note, time);
+                }
+            }
+        }
+        
+        function playSample(instrumentIndex, note, time) {
+            if (!audioContext || !instruments[instrumentIndex]) return;
+            const source = audioContext.createBufferSource();
+            source.buffer = instruments[instrumentIndex].buffer;
+            
+            // Connect to effects chain
+            source.connect(mainGain);
+            source.connect(reverbSend);
+            source.connect(echoSend);
+
+            const baseNote = 60;
+            const selectedScale = scales[selectedScaleIndex + 1] || scales[0];
+            const noteDiff = note - baseNote;
+            const scaleLength = selectedScale.ratios.length;
+
+            // Correctly handle negative numbers for proper modulo
+            const scaleDegree = ((noteDiff % scaleLength) + scaleLength) % scaleLength;
+            const octave = Math.floor(noteDiff / scaleLength);
+
+            const ratio = selectedScale.ratios[scaleDegree] * Math.pow(2, octave);
+            source.playbackRate.value = ratio;
+            
+            source.start(time);
+        }
+        
+        // --- PATTERN EDITOR INPUT ---
+        document.addEventListener('keydown', (e) => {
+            if (e.target.tagName !== 'BODY') return;
+            e.preventDefault();
+            const oldCursor = { ...state.cursor };
+            switch(e.key) {
+                case 'ArrowUp': state.cursor.row = Math.max(0, state.cursor.row - 1); break;
+                case 'ArrowDown': state.cursor.row = Math.min(state.patternLength - 1, state.cursor.row + 1); break;
+                case 'ArrowLeft': state.cursor.track = Math.max(0, state.cursor.track - 1); break;
+                case 'ArrowRight': state.cursor.track = Math.min(state.trackCount - 1, state.cursor.track + 1); break;
+                case 'Delete': case 'Backspace':
+                    { // Block scope for const
+                        setNoteInPattern(state.cursor.track, state.cursor.row, null);
+                        if (state.cursor.row < state.patternLength - 1) {
+                            state.cursor.row++;
+                        }
+                    }
+                    break;
+                default:
+                    if (KEY_TO_NOTE[e.key.toLowerCase()]) {
+                        const note = KEY_TO_NOTE[e.key.toLowerCase()] + (currentOctave * 12);
+                        const noteData = { note: note, instrument: state.selectedInstrument };
+                        
+                        playSample(state.selectedInstrument, note, 0);
+
+                        setNoteInPattern(state.cursor.track, state.cursor.row, noteData);
+                        if (state.cursor.row < state.patternLength - 1) {
+                            state.cursor.row++;
+                        }
+                    }
+            }
+            patternEditorView.updateCursor(state.cursor, oldCursor);
+        });
+        
+        function setNoteInPattern(track, row, noteData) {
+            const pattern = state.patterns[state.currentPattern];
+            if (!pattern) return;
+            pattern.tracks[track][row] = noteData;
+            patternEditorView.updateCell(row, track, noteData, NOTE_NAMES);
+        }
+
+        function createNewPattern(length) {
+            return { length: length, tracks: Array(16).fill(0).map(() => Array(256).fill(null)) };
+        }
+
+        // --- AUDIO UTILITIES ---
+        function createImpulseResponse(ctx) {
+            const sampleRate = ctx.sampleRate;
+            const length = sampleRate * 2; // 2 seconds reverb
+            const impulse = ctx.createBuffer(2, length, sampleRate);
+            const left = impulse.getChannelData(0);
+            const right = impulse.getChannelData(1);
+
+            for (let i = 0; i < length; i++) {
+                const t = i / sampleRate;
+                left[i] = (Math.random() * 2 - 1) * Math.pow(1 - t, 2.5);
+                right[i] = (Math.random() * 2 - 1) * Math.pow(1 - t, 2.5);
+            }
+            return impulse;
+        }
+
+        // --- FILE HANDLING ---
+        function handleSampleUpload(files) {
+            for(const file of files) {
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    parseWav(event.target.result)
+                    .then(audioBuffer => {
+                        const nextSlot = instruments.findIndex(i => !i);
+                        const index = nextSlot !== -1 ? nextSlot : instruments.length;
+                        if(index >= 32) { statusBar.update("Maximum instruments (32) reached."); return; }
+                        instruments[index] = { name: file.name.substring(0, 20), buffer: audioBuffer };
+                        instrumentPanel.render(instruments, state.selectedInstrument);
+                    })
+                    .catch(err => {
+                        statusBar.update(`Error loading ${file.name}: ${err.message}`);
+                        console.error(err);
+                    });
+                };
+                reader.readAsArrayBuffer(file);
+            }
+        }
+
+        function handleScalaUpload(file) {
+             if (!file) return;
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                try {
+                    const scale = parseScl(event.target.result);
+                    const scaleId = scales.length -1;
+                    scales.push(scale);
+                    instrumentPanel.addScale({id: scaleId, name: scale.name});
+                    selectedScaleIndex = scaleId;
+                    statusBar.update(`Loaded scale: ${scale.name}`);
+                } catch(err) {
+                     statusBar.update(`Error parsing .scl file: ${err.message}`);
+                }
+            };
+            reader.readAsText(file);
+        }
+        
+        async function parseWav(arrayBuffer) { /* ... same as before ... */
+            try {
+                return await audioContext.decodeAudioData(arrayBuffer.slice(0));
+            } catch (e) {
+                statusBar.update(`Native decoding failed, trying custom parser...`);
+                const view = new DataView(arrayBuffer);
+                if (view.getUint32(0, false) !== 0x52494646) throw new Error("Not a RIFF file");
+                if (view.getUint32(8, false) !== 0x57415645) throw new Error("Not a WAVE file");
+                if (view.getUint32(12, false) !== 0x666d7420) throw new Error("fmt chunk not found");
+                const numChannels = view.getUint16(22, true), sampleRate = view.getUint32(24, true), bitsPerSample = view.getUint16(34, true);
+                let dataOffset = 12;
+                while (view.getUint32(dataOffset, false) !== 0x64617461) {
+                    dataOffset += 4; const chunkSize = view.getUint32(dataOffset, true); dataOffset += 4 + chunkSize;
+                    if (dataOffset >= view.byteLength) throw new Error("data chunk not found");
+                }
+                const dataSize = view.getUint32(dataOffset + 4, true), pcmDataOffset = dataOffset + 8;
+                const numSamples = dataSize / (numChannels * (bitsPerSample / 8));
+                const audioBuffer = audioContext.createBuffer(numChannels, numSamples, sampleRate);
+                for (let c = 0; c < numChannels; c++) {
+                    const cd = audioBuffer.getChannelData(c);
+                    for (let i = 0; i < numSamples; i++) {
+                        const o = pcmDataOffset + (i * numChannels + c) * (bitsPerSample / 8); let s = 0;
+                        if (bitsPerSample === 8) s = (view.getUint8(o) - 128) / 128.0;
+                        else if (bitsPerSample === 16) s = view.getInt16(o, true) / 32768.0;
+                        else if (bitsPerSample === 24) { let v = (view.getUint8(o+2) << 16) | (view.getUint8(o+1) << 8) | view.getUint8(o); if (v & 0x800000) v |= ~0xffffff; s = v / 8388608.0;}
+                        else if (bitsPerSample === 32) s = view.getInt32(o, true) / 2147483648.0;
+                        else throw new Error(`${bitsPerSample}-bit samples not supported.`);
+                        cd[i] = s;
+                    }
+                } return audioBuffer;
+            }
+        }
+
+        function parseScl(sclText) { /* ... same as before ... */
+            const lines = sclText.split('\n').map(l => l.trim()).filter(l => l && !l.startsWith('!'));
+            const name = lines.shift() || 'Unnamed Scale', noteCount = parseInt(lines.shift());
+            if (isNaN(noteCount) || noteCount !== lines.length) throw new Error('Note count mismatch.');
+            const ratios = lines.map(line => {
+                if (line.includes('.')) return Math.pow(2, parseFloat(line) / 1200);
+                else if (line.includes('/')) { const [n,d] = line.split('/').map(Number); return n / d; }
+                else return parseInt(line);
+            });
+            if (ratios.length === noteCount && (!ratios.includes(2) || Math.abs(ratios[ratios.length-1]-2) > 0.001)) ratios.push(2.0);
+            return { name, ratios };
+        }
+
+        // --- EXPORT FUNCTIONALITY ---
+        function bufferToWav(aBuffer) {
+            const numOfChan = aBuffer.numberOfChannels,
+                length = aBuffer.length * numOfChan * 2 + 44,
+                buffer = new ArrayBuffer(length),
+                view = new DataView(buffer),
+                channels = [],
+                sampleRate = aBuffer.sampleRate;
+            let offset = 0,
+                pos = 0;
+
+            for (let i = 0; i < numOfChan; i++) {
+                channels.push(aBuffer.getChannelData(i));
+            }
+
+            // Helper function
+            const setUint16 = (data) => {
+                view.setUint16(pos, data, true);
+                pos += 2;
+            }
+            const setUint32 = (data) => {
+                view.setUint32(pos, data, true);
+                pos += 4;
+            }
+
+            // RIFF header
+            setUint32(0x46464952); // "RIFF"
+            setUint32(length - 8);
+            setUint32(0x45564157); // "WAVE"
+
+            // FMT sub-chunk
+            setUint32(0x20746d66); // "fmt " chunk
+            setUint32(16); // length of fmt data
+            setUint16(1); // PCM - integer samples
+            setUint16(numOfChan); // channels
+            setUint32(sampleRate); // sample rate
+            setUint32(sampleRate * 2 * numOfChan); // byte rate
+            setUint16(numOfChan * 2); // block align
+            setUint16(16); // 16-bit samples
+
+            // Data sub-chunk
+            setUint32(0x61746164); // "data" - chunk
+            setUint32(length - pos - 4);
+
+            // Write the PCM samples
+            for (let i = 0; i < aBuffer.length; i++) {
+                for (let chan = 0; chan < numOfChan; chan++) {
+                    let sample = channels[chan][i];
+                    sample = Math.max(-1, Math.min(1, sample));
+                    sample = sample < 0 ? sample * 0x8000 : sample * 0x7FFF;
+                    view.setInt16(pos, sample, true);
+                    pos += 2;
+                }
+            }
+
+            return new Blob([view], { type: 'audio/wav' });
+        }
+
+
+        async function exportAsWav() {
+            const secondsPerTick = (60.0 / state.bpm) / 4.0;
+            let totalRows = 0;
+            state.sequence.forEach(i => { if(state.patterns[i]) totalRows += state.patterns[i].length; });
+            if (totalRows === 0) { statusBar.update("Nothing to export."); return; }
+            
+            // The average duration is the same, so this is a safe buffer size.
+            const totalDuration = totalRows * secondsPerTick;
+            const totalSamples = Math.ceil(totalDuration * audioContext.sampleRate);
+            statusBar.update(`Rendering ${totalDuration.toFixed(2)}s of audio...`);
+            
+            const offlineCtx = new OfflineAudioContext(2, totalSamples, audioContext.sampleRate);
+            let currentTime = 0;
+            let globalRowCounter = 0;
+            
+            const playSampleOffline = (instIdx, note, time, ctx) => {
+                 if (!instruments[instIdx]) return;
+                const source = ctx.createBufferSource(); source.buffer = instruments[instIdx].buffer;
+                const baseNote = 60; const selScale = scales[selectedScaleIndex + 1] || scales[0];
+                const noteDiff = note - baseNote;
+                const scaleLength = selScale.ratios.length;
+
+                const deg = ((noteDiff % scaleLength) + scaleLength) % scaleLength;
+                const oct = Math.floor(noteDiff / scaleLength);
+                
+                source.playbackRate.value = selScale.ratios[deg] * Math.pow(2, oct);
+                source.connect(ctx.destination); source.start(time);
+            };
+
+            for(const pIdx of state.sequence) {
+                const p = state.patterns[pIdx]; if (!p) continue;
+                for (let r = 0; r < p.length; r++) {
+                    for (let t = 0; t < state.trackCount; t++) {
+                        const n = p.tracks[t]?.[r];
+                        if (n && n.note !== null && instruments[n.instrument]) {
+                            playSampleOffline(n.instrument, n.note, currentTime, offlineCtx);
+                        }
+                    }
+                    // Advance time based on swing for offline rendering
+                    let tickDuration = secondsPerTick;
+                    const swingRatio = state.swingAmount / 100.0;
+                    if (globalRowCounter % 2 === 0) {
+                        tickDuration = (secondsPerTick * 2) * swingRatio;
+                    } else {
+                        tickDuration = (secondsPerTick * 2) * (1.0 - swingRatio);
+                    }
+                    currentTime += tickDuration;
+                    globalRowCounter++;
+                }
+            }
+            const renderedBuffer = await offlineCtx.startRendering();
+            statusBar.update("Encoding to WAV...");
+            setTimeout(() => {
+                const wavBlob = bufferToWav(renderedBuffer);
+                const a = document.createElement('a');
+                a.href = URL.createObjectURL(wavBlob); a.download = 'my-track.wav';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(a.href);
+                statusBar.update("Export complete!");
+            }, 100);
+        }
+
+        // --- PWA Functionality ---
+        function setupPWA() {
+            const pathParts = window.location.pathname.split('/');
+            const fileName = pathParts[pathParts.length - 1] || 'index.html';
+
+            // 1. Create Manifest dynamically as a data URI
+            const manifest = {
+                "name": "Retro Web Tracker",
+                "short_name": "WebTracker",
+                "start_url": ".",
+                "display": "standalone",
+                "background_color": "#1a1a2e",
+                "theme_color": "#e94560",
+                "description": "An Amiga-style audio tracker in your browser.",
+                "icons": [
+                    {
+                        "src": "https://placehold.co/192x192/e94560/FFFFFF/png?text=Tracker",
+                        "sizes": "192x192",
+                        "type": "image/png",
+                        "purpose": "any maskable"
+                    },
+                    {
+                        "src": "https://placehold.co/512x512/e94560/FFFFFF/png?text=Tracker",
+                        "sizes": "512x512",
+                        "type": "image/png",
+                        "purpose": "any maskable"
+                    }
+                ]
+            };
+            const manifestString = JSON.stringify(manifest);
+            const manifestURL = 'data:application/manifest+json;base64,' + btoa(unescape(encodeURIComponent(manifestString)));
+            const link = document.createElement('link');
+            link.rel = 'manifest';
+            link.href = manifestURL;
+            document.head.appendChild(link);
+
+            // 2. Register Service Worker from a Blob
+            if ('serviceWorker' in navigator) {
+                const swCode = `
+                    const CACHE_NAME = 'retro-tracker-cache-v1';
+                    // The main HTML file and its CDN dependencies.
+                    const urlsToCache = [
+                        '${fileName}',
+                        'https://cdn.tailwindcss.com',
+                        'https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@400;700&display=swap'
+                    ];
+
+                    self.addEventListener('install', event => {
+                        event.waitUntil(
+                            caches.open(CACHE_NAME)
+                                .then(cache => {
+                                    console.log('Opened cache');
+                                    return cache.addAll(urlsToCache);
+                                })
+                        );
+                    });
+
+                    self.addEventListener('fetch', event => {
+                        event.respondWith(
+                            caches.match(event.request)
+                                .then(response => {
+                                    // Cache hit - return response
+                                    if (response) {
+                                        return response;
+                                    }
+                                    // Not in cache, go to network.
+                                    return fetch(event.request);
+                                })
+                        );
+                    });
+                `;
+
+                const swBlob = new Blob([swCode], { type: 'application/javascript' });
+                const swUrl = URL.createObjectURL(swBlob);
+
+                navigator.serviceWorker.register(swUrl)
+                    .then(registration => {
+                        console.log('ServiceWorker registration successful with scope: ', registration.scope);
+                        statusBar.update("Ready. Offline mode enabled.");
+                    }).catch(error => {
+                        console.log('ServiceWorker registration failed: ', error);
+                        statusBar.update("Ready. Offline mode failed to initialize.");
+                    });
+            }
+        }
+
+
+        // --- INITIALIZATION CALLS ---
+        patternEditorView.render(state, NOTE_NAMES);
+        instrumentPanel.render(instruments, state.selectedInstrument);
+        setupPWA();
+    });
+    </script>
+</body>
+</html>
+
+
