@@ -717,15 +717,147 @@
             reader.readAsArrayBuffer(file);
         }
         
-        async function handleSampleUpload(files) { /* ... existing code ... */ }
-        function handleScalaUpload(file) { /* ... existing code ... */ }
-        async function parseWav(arrayBuffer) { /* ... existing code ... */ }
-        function parseScl(sclText) { /* ... existing code ... */ }
-        async function exportAsWav() { /* ... existing code ... */ }
-        function playSampleOffline(instIdx, note, time, ctx) { /* ... existing code ... */ }
-        function bufferToWav(aBuffer) { /* ... existing code ... */ }
-        function exportAsMidi() { /* ... existing code ... */ }
-        function setupPWA() { /* ... existing code ... */ }
+        async function handleSampleUpload(files) {
+            for (const file of files) {
+                const reader = new FileReader();
+                reader.onload = ((theFile) => {
+                    return (event) => {
+                        parseWav(event.target.result).then(audioBuffer => {
+                            const nextSlot = instruments.findIndex(i => !i);
+                            const index = nextSlot !== -1 ? nextSlot : instruments.length;
+                            if (index >= 32) {
+                                statusBar.setText("Maximum instruments (32) reached.");
+                                return;
+                            }
+                            instruments[index] = { name: theFile.name.substring(0, 20), buffer: audioBuffer };
+                            renderAll();
+                        }).catch(err => {
+                            statusBar.setText(`Error loading ${theFile.name}: ${err.message}`);
+                            console.error(err);
+                        });
+                    };
+                })(file);
+                reader.readAsArrayBuffer(file);
+            }
+        }
+        function handleScalaUpload(file) {
+            if (!file) return; const reader = new FileReader();
+            reader.onload = (e) => {
+                try {
+                    const scale = parseScl(e.target.result);
+                    scales.push(scale); selectedScaleIndex = scales.length - 2;
+                    statusBar.setText(`Loaded scale: ${scale.name}`); renderAll();
+                } catch(err) { statusBar.setText(`Error parsing .scl file: ${err.message}`); }
+            };
+            reader.readAsText(file);
+        }
+        async function parseWav(arrayBuffer) {
+            if (!audioContext) initAudio();
+            try { return await audioContext.decodeAudioData(arrayBuffer.slice(0)); }
+            catch (e) {
+                statusBar.setText(`Native decoding failed, trying custom parser...`);
+                const view = new DataView(arrayBuffer);
+                if (view.getUint32(0, false) !== 0x52494646) throw new Error("Not a RIFF file");
+                if (view.getUint32(8, false) !== 0x57415645) throw new Error("Not a WAVE file");
+                if (view.getUint32(12, false) !== 0x666d7420) throw new Error("fmt chunk not found");
+                const numChannels = view.getUint16(22, true), sampleRate = view.getUint32(24, true), bitsPerSample = view.getUint16(34, true);
+                let dataOffset = 12; while (view.getUint32(dataOffset, false) !== 0x64617461) { dataOffset += 8 + view.getUint32(dataOffset + 4, true); if (dataOffset >= view.byteLength) throw new Error("data chunk not found"); }
+                const dataSize = view.getUint32(dataOffset + 4, true), pcmDataOffset = dataOffset + 8; const numSamples = dataSize / (numChannels * (bitsPerSample / 8));
+                const audioBuffer = audioContext.createBuffer(numChannels, numSamples, sampleRate);
+                for (let c = 0; c < numChannels; c++) {
+                    const cd = audioBuffer.getChannelData(c);
+                    for (let i = 0; i < numSamples; i++) {
+                        const o = pcmDataOffset + (i * numChannels + c) * (bitsPerSample / 8); let s = 0;
+                        if (bitsPerSample === 8) s = (view.getUint8(o) - 128) / 128.0; else if (bitsPerSample === 16) s = view.getInt16(o, true) / 32768.0; else if (bitsPerSample === 24) { let v = (view.getUint8(o+2) << 16) | (view.getUint8(o+1) << 8) | view.getUint8(o); if (v & 0x800000) v |= ~0xffffff; s = v / 8388608.0;} else if (bitsPerSample === 32) s = view.getInt32(o, true) / 2147483648.0; else throw new Error(`${bitsPerSample}-bit samples not supported.`);
+                        cd[i] = s;
+                    }
+                } return audioBuffer;
+            }
+        }
+        function parseScl(sclText) {
+            const lines = sclText.split('\n').map(l => l.trim()).filter(l => l && !l.startsWith('!'));
+            const name = lines.shift() || 'Unnamed', noteCount = parseInt(lines.shift());
+            if (isNaN(noteCount) || noteCount !== lines.length) throw new Error('Note count mismatch.');
+            const ratios = lines.map(l => { if (l.includes('.')) return Math.pow(2, parseFloat(l) / 1200); else if (l.includes('/')) { const [n,d] = l.split('/').map(Number); return n / d; } else return parseInt(l); });
+            if (ratios.length === noteCount && (!ratios.includes(2) || Math.abs(ratios[ratios.length-1]-2) > 0.001)) ratios.push(2.0);
+            return { name, ratios };
+        }
+        async function exportAsWav() {
+            if (!audioContext) { statusBar.setText("AudioContext not ready for export."); return; }
+            const secondsPerTick = (60.0 / state.bpm) / 4.0, totalRows = state.sequence.reduce((acc, i) => acc + (state.patterns[i] ? state.patterns[i].length : 0), 0);
+            if (totalRows === 0) { statusBar.setText("Nothing to export."); return; }
+            const totalDuration = totalRows * secondsPerTick, totalSamples = Math.ceil(totalDuration * audioContext.sampleRate);
+            statusBar.setText(`Rendering ${totalDuration.toFixed(2)}s of audio...`);
+            const offlineCtx = new OfflineAudioContext(2, totalSamples, audioContext.sampleRate);
+            let currentTime = 0, globalRowCounter = 0;
+            for(const pIdx of state.sequence) {
+                const p = state.patterns[pIdx]; if (!p) continue;
+                for (let r = 0; r < p.length; r++) {
+                    for (let t = 0; t < state.trackCount; t++) { const n = p.tracks[t]?.[r]; if (n && n.note !== null && instruments[n.instrument]) { playSampleOffline(n.instrument, n.note, currentTime, offlineCtx); } }
+                    let tickDuration = secondsPerTick; const swingRatio = state.swingAmount / 100.0;
+                    if (globalRowCounter % 2 === 0) tickDuration = (secondsPerTick * 2) * swingRatio; else tickDuration = (secondsPerTick * 2) * (1.0 - swingRatio);
+                    currentTime += tickDuration; globalRowCounter++;
+                }
+            }
+            const renderedBuffer = await offlineCtx.startRendering(); statusBar.setText("Encoding to WAV...");
+            setTimeout(() => {
+                const wavBlob = bufferToWav(renderedBuffer);
+                const a = document.createElement('a'); a.href = URL.createObjectURL(wavBlob); a.download = 'my-track.wav';
+                document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(a.href);
+                statusBar.setText("Export complete!");
+            }, 100);
+        }
+        function playSampleOffline(instIdx, note, time, ctx) {
+            if (!instruments[instIdx]) return;
+            const source = ctx.createBufferSource(); source.buffer = instruments[instIdx].buffer;
+            const baseNote = 60; const selScale = scales[selectedScaleIndex + 1] || scales[0]; const noteDiff = note - baseNote; const scaleLen = selScale.ratios.length;
+            const deg = ((noteDiff % scaleLen) + scaleLen) % scaleLen; const oct = Math.floor(noteDiff / scaleLen);
+            source.playbackRate.value = selScale.ratios[deg] * Math.pow(2, oct);
+            source.connect(ctx.destination); source.start(time);
+        }
+        function bufferToWav(aBuffer) {
+            const numOfChan = aBuffer.numberOfChannels, len = aBuffer.length * numOfChan * 2 + 44, buffer = new ArrayBuffer(len), view = new DataView(buffer), chans = [], sr = aBuffer.sampleRate; let pos = 0;
+            for (let i = 0; i < numOfChan; i++) chans.push(aBuffer.getChannelData(i));
+            const setU16 = d => { view.setUint16(pos, d, true); pos += 2; }; const setU32 = d => { view.setUint32(pos, d, true); pos += 4; };
+            setU32(0x46464952); setU32(len - 8); setU32(0x45564157); setU32(0x20746d66); setU32(16); setU16(1); setU16(numOfChan);
+            setU32(sr); setU32(sr * 2 * numOfChan); setU16(numOfChan * 2); setU16(16); setU32(0x61746164); setU32(len - pos - 4);
+            for (let i = 0; i < aBuffer.length; i++) for (let chan = 0; chan < numOfChan; chan++) { let s = Math.max(-1, Math.min(1, chans[chan][i])); s = s < 0 ? s * 0x8000 : s * 0x7FFF; view.setInt16(pos, s, true); pos += 2; }
+            return new Blob([view], { type: 'audio/wav' });
+        }
+        function exportAsMidi() {
+            statusBar.setText("Exporting to MIDI...");
+            const TPQN = 480, ticksPerRow = TPQN / 4;
+            function writeString(v, o, s) { for (let i=0;i<s.length;i++) v.setUint8(o+i, s.charCodeAt(i)); }
+            function encodeVLQ(v) { if(v===0) return new Uint8Array([0]); let b=[]; do { let byte=v&0x7F; v>>=7; if(b.length>0) byte|=0x80; b.unshift(byte); } while(v>0); return new Uint8Array(b); }
+            let trackChunks = []; const tempo = Math.round(60000000 / state.bpm);
+            trackChunks.push(new Uint8Array([...encodeVLQ(0), 0xFF, 0x51, 0x03, (tempo>>16)&0xFF, (tempo>>8)&0xFF, tempo&0xFF, ...encodeVLQ(0), 0xFF, 0x2F, 0x00]));
+            for (let t = 0; t < state.trackCount; t++) {
+                let events = [], playingNote = null, globalRow = 0;
+                state.sequence.forEach(pIdx => { const p = state.patterns[pIdx]; if(!p) return; for (let r = 0; r < p.length; r++) {
+                    const tick = globalRow * ticksPerRow; const note = p.tracks[t]?.[r];
+                    if (playingNote && (!note || note.note !== playingNote.note)) { events.push({ tick, type: 'off', note: playingNote.note }); playingNote = null; }
+                    if (note && note.note !== null) { if(playingNote) { events.push({ tick, type: 'off', note: playingNote.note }); } events.push({ tick, type: 'on', note: note.note, vel: 90 }); playingNote = note; }
+                    globalRow++;
+                }});
+                if (playingNote) events.push({ tick: globalRow*ticksPerRow, type: 'off', note: playingNote.note });
+                let trackData = [], lastTick = 0; events.sort((a,b)=>a.tick-b.tick);
+                for(const e of events) { trackData.push(...encodeVLQ(e.tick - lastTick)); trackData.push(e.type==='on' ? 0x90|t : 0x80|t, e.note, e.type==='on' ? e.vel : 0); lastTick = e.tick; }
+                trackData.push(...encodeVLQ(0), 0xFF, 0x2F, 0x00); trackChunks.push(new Uint8Array(trackData));
+            }
+            let len = 14; trackChunks.forEach(c=>len+=8+c.length); const buf=new ArrayBuffer(len), view=new DataView(buf); let o=0;
+            writeString(view,o,"MThd"); o+=4; view.setUint32(o,6); o+=4; view.setUint16(o,1); o+=2; view.setUint16(o,trackChunks.length); o+=2; view.setUint16(o,TPQN); o+=2;
+            trackChunks.forEach(c=>{ writeString(view,o,"MTrk"); o+=4; view.setUint32(o,c.length); o+=4; c.forEach(b=>view.setUint8(o++,b)); });
+            const blob = new Blob([view], {type:'audio/midi'}); const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='my-track.mid';
+            a.click(); URL.revokeObjectURL(a.href); statusBar.setText("MIDI export complete!");
+        }
+
+        // --- PWA SETUP ---
+        function setupPWA() {
+            const fileName=window.location.pathname.split('/').pop()||'index.html'; const manifest={"name":"Retro Web Tracker","short_name":"WebTracker","start_url":".","display":"standalone","background_color":"#1a1a2e","theme_color":"#e94560","icons":[{"src":"https://placehold.co/192x192/e94560/FFFFFF/png?text=Tracker","sizes":"192x192","type":"image/png"},{"src":"https://placehold.co/512x512/e94560/FFFFFF/png?text=Tracker","sizes":"512x512","type":"image/png"}]};
+            const manifestURL = 'data:application/manifest+json;base64,'+btoa(unescape(encodeURIComponent(JSON.stringify(manifest))));
+            const link=document.createElement('link');link.rel='manifest';link.href=manifestURL;document.head.appendChild(link);
+            if('serviceWorker' in navigator){const swCode=`const CN='rwt-cache-v1',U=['${fileName}','https://cdn.tailwindcss.com','https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@400;700&display=swap'];self.addEventListener('install',e=>e.waitUntil(caches.open(CN).then(c=>c.addAll(U))));self.addEventListener('fetch',e=>e.respondWith(caches.match(e.request).then(r=>r||fetch(e.request))));`; const swBlob=new Blob([swCode],{type:'application/javascript'}); navigator.serviceWorker.register(URL.createObjectURL(swBlob)).then(()=>statusBar.setText("Ready. Offline mode enabled.")).catch(()=>statusBar.setText("Ready. Offline mode failed to initialize."));}
+        }
         
         // --- INITIALIZE ---
         renderAll();
@@ -734,6 +866,5 @@
     </script>
 </body>
 </html>
-
 
 
