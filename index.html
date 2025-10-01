@@ -19,6 +19,9 @@
             color: #E0E0E0;
             background-color: #1a1a2e;
         }
+        #prompt-overlay {
+            background-color: rgba(0,0,0,0.7);
+        }
     </style>
 </head>
 <body class="bg-gray-900 text-gray-200 p-2 sm:p-4">
@@ -27,20 +30,20 @@
         
         <!-- Sticky Header Wrapper -->
         <div class="sticky top-0 z-50 bg-gray-900 space-y-4 pb-4">
-            <div class="flex justify-between items-center">
-                <h1 class="text-2xl sm:text-3xl font-bold text-center text-pink-500 pt-4 flex-grow">Retro Web Tracker</h1>
-                <button id="toggle-controls-btn" class="sm:hidden p-2 mr-2 bg-blue-500 text-white rounded">
+            <div class="flex items-center justify-center relative">
+                 <h1 class="text-2xl sm:text-3xl font-bold text-center text-pink-500 pt-4">Retro Web Tracker</h1>
+                 <button id="toggle-controls-btn" class="md:hidden absolute right-0 top-4 p-2 text-white">
                     <svg id="toggle-icon-open" xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16m-7 6h7" />
                     </svg>
                     <svg id="toggle-icon-close" xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 hidden" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
                     </svg>
-                </button>
+                 </button>
             </div>
 
             <!-- Collapsible Controls Container -->
-            <div id="controls-container" class="hidden sm:block space-y-4">
+            <div id="controls-container" class="hidden md:block space-y-4">
                 <control-panel></control-panel>
                 <structure-controls></structure-controls>
                 <effects-panel></effects-panel>
@@ -58,6 +61,19 @@
 
     <!-- Hidden file input for loading songs -->
     <input type="file" id="song-file-input" class="hidden" accept=".rwts">
+
+    <!-- Custom Filename Prompt -->
+    <div id="prompt-overlay" class="fixed inset-0 z-50 hidden items-center justify-center">
+        <div class="bg-gray-800 p-6 rounded-lg shadow-xl w-11/12 max-w-sm">
+            <h3 id="prompt-title" class="text-lg font-bold mb-4 text-white">Enter Filename</h3>
+            <input type="text" id="prompt-input" class="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-pink-500">
+            <div class="mt-4 flex justify-end space-x-2">
+                <button id="prompt-cancel" class="px-4 py-2 bg-gray-600 hover:bg-gray-700 rounded font-bold">Cancel</button>
+                <button id="prompt-ok" class="px-4 py-2 bg-pink-500 hover:bg-pink-600 rounded font-bold">OK</button>
+            </div>
+        </div>
+    </div>
+
 
     <!-- TEMPLATES FOR WEB COMPONENTS -->
     <template id="control-panel-template">
@@ -100,7 +116,7 @@
         </style>
         <div class="panel">
             <div> <label for="pattern-length">Pattern Length:</label> <input type="number" id="pattern-length" value="64" min="1" max="256"> </div>
-            <div> <label for="track-count">Tracks:</label> <input type="number" id="track-count" value="8" min="1" max="16"> </div>
+            <div> <label for="track-count">Tracks:</label> <input type="number" id="track-count" value="4" min="1" max="4"> </div>
             <div> <label for="current-pattern">Current Pattern:</label> <input type="number" id="current-pattern" value="0" min="0" max="99"> </div>
             <div> <label for="pattern-sequence">Sequence (CSV):</label> <input type="text" id="pattern-sequence" value="0"> </div>
         </div>
@@ -147,7 +163,7 @@
         <style>
             .panel { background-color: #2c3e50; padding: 1rem; border-radius: 0.5rem; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06); }
             h2 { font-size: 1.25rem; font-weight: bold; margin-bottom: 0.5rem; color: #e94560; }
-            .tracker-grid { display: grid; grid-template-columns: 50px repeat(var(--tracks, 8), 1fr); gap: 2px; background-color: #16213e; padding: 5px; border-radius: 8px; overflow-x: auto; }
+            .tracker-grid { display: grid; grid-template-columns: 50px repeat(var(--tracks, 4), 1fr); gap: 2px; background-color: #16213e; padding: 5px; border-radius: 8px; overflow-x: auto; }
             .grid-header, .grid-cell, .row-number { background-color: #0f3460; padding: 4px 2px; text-align: center; font-size: 12px; border-radius: 2px; white-space: nowrap; }
             .row-number { background-color: #16213e; color: #a0a0a0; }
             .grid-cell { background-color: #1a1a2e; cursor: pointer; height: 20px; }
@@ -310,7 +326,8 @@
 
                 for (let track = 0; track < state.trackCount; track++) {
                     const cell = document.createElement('div'); cell.className = 'grid-cell';
-                    cell.dataset.row = row; cell.dataset.track = track;
+                    cell.dataset.row = row;
+                    cell.dataset.track = track;
                     if (row === state.currentRow && state.playing) cell.classList.add('active-row');
                     if (row === state.cursor.row && track === state.cursor.track) cell.classList.add('cursor');
                     const noteData = currentPatternData.tracks[track]?.[row];
@@ -364,7 +381,7 @@
         let currentOctave = 4;
         let state = {
             playing: false, swingAmount: 50, bpm: 125, currentRow: 0,
-            currentPattern: 0, currentSequencePos: 0, patternLength: 64, trackCount: 8,
+            currentPattern: 0, currentSequencePos: 0, patternLength: 64, trackCount: 4,
             selectedInstrument: 0, cursor: { track: 0, row: 0 }, nextNoteTime: 0,
             sequence: [0],
             patterns: [{ length: 64, tracks: Array(16).fill(0).map(() => Array(256).fill(null)) }],
@@ -382,6 +399,51 @@
         const controlsContainer = document.getElementById('controls-container');
         const toggleIconOpen = document.getElementById('toggle-icon-open');
         const toggleIconClose = document.getElementById('toggle-icon-close');
+
+        const promptOverlay = document.getElementById('prompt-overlay');
+        const promptTitle = document.getElementById('prompt-title');
+        const promptInput = document.getElementById('prompt-input');
+        const promptOk = document.getElementById('prompt-ok');
+        const promptCancel = document.getElementById('prompt-cancel');
+        let promptResolve = null;
+
+        // --- UI Functions ---
+        function showPrompt(title, defaultValue) {
+            return new Promise(resolve => {
+                promptTitle.textContent = title;
+                promptInput.value = defaultValue;
+                promptOverlay.classList.remove('hidden');
+                promptOverlay.classList.add('flex');
+                promptInput.focus();
+                promptInput.select();
+                promptResolve = resolve;
+            });
+        }
+
+        function hidePrompt() {
+            promptOverlay.classList.add('hidden');
+            promptOverlay.classList.remove('flex');
+            promptResolve = null;
+        }
+
+        promptOk.addEventListener('click', () => {
+            if (promptResolve) promptResolve(promptInput.value);
+            hidePrompt();
+        });
+
+        promptCancel.addEventListener('click', () => {
+            if (promptResolve) promptResolve(null);
+            hidePrompt();
+        });
+        
+        promptInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                promptOk.click();
+            } else if (e.key === 'Escape') {
+                promptCancel.click();
+            }
+        });
+
 
         // --- RENDER/UPDATE DISPATCHER ---
         function renderAll() {
@@ -467,6 +529,7 @@
 
         document.addEventListener('keydown', e => {
             if (e.target.tagName !== 'BODY' && e.target.tagName !== 'HTML') return;
+            if (promptResolve) return; // Don't handle keyboard input when prompt is open
             e.preventDefault();
             let newCursor = { ...state.cursor };
             switch(e.key) {
@@ -490,7 +553,7 @@
             state.cursor = newCursor;
             patternEditorView.updateCursorAndActiveRow(state);
         });
-
+        
         // --- CORE LOGIC ---
         function scheduler() {
             while (state.nextNoteTime < audioContext.currentTime + 0.1) {
@@ -546,200 +609,84 @@
         }
 
         // --- FILE HANDLING & EXPORT ---
-        function saveSong() {
+        async function saveSong() {
+            const filename = await showPrompt('Save Song As', 'my-song.rwts');
+            if (!filename) {
+                statusBar.setText("Save cancelled.");
+                return;
+            }
             statusBar.setText("Saving song...");
             try {
-                // Use a large buffer and slice it. Easier than pre-calculating the exact size.
                 const buffer = new ArrayBuffer(10 * 1024 * 1024); // 10MB buffer
                 const view = new DataView(buffer);
                 let offset = 0;
-
-                const writeString = (str) => {
-                    const len = Math.min(255, str.length);
-                    view.setUint8(offset++, len);
-                    for (let i = 0; i < len; i++) { view.setUint8(offset++, str.charCodeAt(i)); }
-                };
-
-                // Header
-                view.setUint32(offset, 0x52575453); offset += 4; // "RWTS"
-                view.setUint8(offset++, 1); // Version
-
-                // Globals
-                view.setUint16(offset, state.bpm, true); offset += 2;
-                view.setUint8(offset++, state.swingAmount);
-                view.setUint16(offset, state.patternLength, true); offset += 2;
-                view.setUint8(offset++, state.trackCount);
-                view.setUint8(offset++, state.sequence.length);
-                state.sequence.forEach(p => view.setUint8(offset++, p));
-
-                // Instruments
-                const activeInstruments = instruments.map((inst, i) => ({ inst, i })).filter(item => item.inst);
-                view.setUint8(offset++, activeInstruments.length);
-                activeInstruments.forEach(({ inst, i }) => {
-                    view.setUint8(offset++, i);
-                    writeString(inst.name);
-                    const buffer = inst.buffer;
-                    view.setUint32(offset, buffer.sampleRate, true); offset += 4;
-                    view.setUint8(offset++, buffer.numberOfChannels);
-                    view.setUint32(offset, buffer.length, true); offset += 4;
-                    for (let c = 0; c < buffer.numberOfChannels; c++) {
-                        const channelData = buffer.getChannelData(c);
-                        for (let s = 0; s < buffer.length; s++) { view.setFloat32(offset, channelData[s], true); offset += 4; }
-                    }
-                });
-
-                // Scales
-                const customScales = scales.slice(1);
-                view.setUint8(offset++, customScales.length);
-                customScales.forEach(scale => {
-                    writeString(scale.name);
-                    view.setUint16(offset, scale.ratios.length, true); offset += 2;
-                    scale.ratios.forEach(r => { view.setFloat64(offset, r, true); offset += 8; });
-                });
-
-                // Patterns
-                const patternsToSave = state.patterns.map((p, i) => ({ p, i })).filter(item => item.p);
-                view.setUint8(offset++, patternsToSave.length);
-                patternsToSave.forEach(({ p, i }) => {
-                    view.setUint8(offset++, i);
-                    view.setUint16(offset, p.length, true); offset += 2;
-                    for (let t = 0; t < 16; t++) { // Always save full 16 tracks for future compatibility
-                        for (let r = 0; r < p.length; r++) {
-                            const noteData = p.tracks[t]?.[r];
-                            if (noteData) { view.setUint8(offset++, noteData.note); view.setUint8(offset++, noteData.instrument); } 
-                            else { view.setUint8(offset++, 255); view.setUint8(offset++, 255); }
-                        }
-                    }
-                });
-
+                const writeString = (str) => { const len = Math.min(255, str.length); view.setUint8(offset++, len); for (let i = 0; i < len; i++) { view.setUint8(offset++, str.charCodeAt(i)); } };
+                view.setUint32(offset, 0x52575453); offset += 4; view.setUint8(offset++, 1);
+                view.setUint16(offset, state.bpm, true); offset += 2; view.setUint8(offset++, state.swingAmount); view.setUint16(offset, state.patternLength, true); offset += 2; view.setUint8(offset++, state.trackCount); view.setUint8(offset++, state.sequence.length); state.sequence.forEach(p => view.setUint8(offset++, p));
+                const activeInstruments = instruments.map((inst, i) => ({ inst, i })).filter(item => item.inst); view.setUint8(offset++, activeInstruments.length);
+                activeInstruments.forEach(({ inst, i }) => { view.setUint8(offset++, i); writeString(inst.name); const buffer = inst.buffer; view.setUint32(offset, buffer.sampleRate, true); offset += 4; view.setUint8(offset++, buffer.numberOfChannels); view.setUint32(offset, buffer.length, true); offset += 4; for (let c = 0; c < buffer.numberOfChannels; c++) { const channelData = buffer.getChannelData(c); for (let s = 0; s < buffer.length; s++) { view.setFloat32(offset, channelData[s], true); offset += 4; } } });
+                const customScales = scales.slice(1); view.setUint8(offset++, customScales.length); customScales.forEach(scale => { writeString(scale.name); view.setUint16(offset, scale.ratios.length, true); offset += 2; scale.ratios.forEach(r => { view.setFloat64(offset, r, true); offset += 8; }); });
+                const patternsToSave = state.patterns.map((p, i) => ({ p, i })).filter(item => item.p); view.setUint8(offset++, patternsToSave.length);
+                patternsToSave.forEach(({ p, i }) => { view.setUint8(offset++, i); view.setUint16(offset, p.length, true); offset += 2; for (let t = 0; t < 16; t++) { for (let r = 0; r < p.length; r++) { const noteData = p.tracks[t]?.[r]; if (noteData) { view.setUint8(offset++, noteData.note); view.setUint8(offset++, noteData.instrument); } else { view.setUint8(offset++, 255); view.setUint8(offset++, 255); } } } });
                 const finalBuffer = buffer.slice(0, offset);
                 const blob = new Blob([finalBuffer], { type: 'application/octet-stream' });
-                const a = document.createElement('a');
-                a.href = URL.createObjectURL(blob);
-                a.download = 'song.rwts';
+                const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = filename;
                 document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(a.href);
                 statusBar.setText("Song saved.");
-            } catch (e) {
-                statusBar.setText(`Error saving song: ${e.message}`);
-                console.error(e);
-            }
+            } catch (e) { statusBar.setText(`Error saving song: ${e.message}`); console.error(e); }
         }
 
         function loadSong(file) {
-             if (!audioContext) {
-                statusBar.setText("Please click to initialize audio before loading a song.");
-                return;
-            }
+            if (!audioContext) { initAudio(); }
             statusBar.setText(`Loading ${file.name}...`);
             const reader = new FileReader();
             reader.onload = (e) => {
                 try {
-                    const buffer = e.target.result;
-                    const view = new DataView(buffer);
-                    let offset = 0;
-
-                    const readString = () => {
-                        const len = view.getUint8(offset++);
-                        let str = '';
-                        for (let i = 0; i < len; i++) { str += String.fromCharCode(view.getUint8(offset++)); }
-                        return str;
-                    };
-
-                    if (view.getUint32(offset) !== 0x52575453) { throw new Error("Invalid song file format."); } offset += 4;
-                    const version = view.getUint8(offset++);
-
-                    // Clear old state
-                    instruments.length = 0;
-                    scales.length = 1; // Keep default scale
-                    state.patterns.length = 0;
-                    
-                    // Load Globals
-                    state.bpm = view.getUint16(offset, true); offset += 2;
-                    state.swingAmount = view.getUint8(offset++);
-                    state.patternLength = view.getUint16(offset, true); offset += 2;
-                    state.trackCount = view.getUint8(offset++);
-                    const seqLen = view.getUint8(offset++);
-                    state.sequence = [];
-                    for (let i = 0; i < seqLen; i++) { state.sequence.push(view.getUint8(offset++)); }
-
-                    // Load Instruments
+                    const buffer = e.target.result; const view = new DataView(buffer); let offset = 0;
+                    const readString = () => { const len = view.getUint8(offset++); let str = ''; for (let i = 0; i < len; i++) { str += String.fromCharCode(view.getUint8(offset++)); } return str; };
+                    if (view.getUint32(offset) !== 0x52575453) { throw new Error("Invalid song file format."); } offset += 4; const version = view.getUint8(offset++);
+                    instruments.length = 0; scales.length = 1; state.patterns.length = 0;
+                    state.bpm = view.getUint16(offset, true); offset += 2; state.swingAmount = view.getUint8(offset++); state.patternLength = view.getUint16(offset, true); offset += 2; state.trackCount = view.getUint8(offset++);
+                    const seqLen = view.getUint8(offset++); state.sequence = []; for (let i = 0; i < seqLen; i++) { state.sequence.push(view.getUint8(offset++)); }
                     const instrumentCount = view.getUint8(offset++);
                     for (let i = 0; i < instrumentCount; i++) {
-                        const index = view.getUint8(offset++);
-                        const name = readString();
-                        const sampleRate = view.getUint32(offset, true); offset += 4;
-                        const numChannels = view.getUint8(offset++);
-                        const numSamples = view.getUint32(offset, true); offset += 4;
+                        const index = view.getUint8(offset++); const name = readString(); const sampleRate = view.getUint32(offset, true); offset += 4; const numChannels = view.getUint8(offset++); const numSamples = view.getUint32(offset, true); offset += 4;
                         const audioBuffer = audioContext.createBuffer(numChannels, numSamples, sampleRate);
-                        for (let c = 0; c < numChannels; c++) {
-                            const channelData = audioBuffer.getChannelData(c);
-                            for (let s = 0; s < numSamples; s++) { channelData[s] = view.getFloat32(offset, true); offset += 4; }
-                        }
+                        for (let c = 0; c < numChannels; c++) { const channelData = audioBuffer.getChannelData(c); for (let s = 0; s < numSamples; s++) { channelData[s] = view.getFloat32(offset, true); offset += 4; } }
                         instruments[index] = { name, buffer: audioBuffer };
                     }
-
-                    // Load Scales
                     const scaleCount = view.getUint8(offset++);
-                    for (let i = 0; i < scaleCount; i++) {
-                        const name = readString();
-                        const ratioCount = view.getUint16(offset, true); offset += 2;
-                        const ratios = [];
-                        for (let j = 0; j < ratioCount; j++) { ratios.push(view.getFloat64(offset, true)); offset += 8; }
-                        scales.push({ name, ratios });
-                    }
-                    
-                    // Load Patterns
+                    for (let i = 0; i < scaleCount; i++) { const name = readString(); const ratioCount = view.getUint16(offset, true); offset += 2; const ratios = []; for (let j = 0; j < ratioCount; j++) { ratios.push(view.getFloat64(offset, true)); offset += 8; } scales.push({ name, ratios }); }
                     const patternCount = view.getUint8(offset++);
                     for (let i = 0; i < patternCount; i++) {
-                        const index = view.getUint8(offset++);
-                        const length = view.getUint16(offset, true); offset += 2;
+                        const index = view.getUint8(offset++); const length = view.getUint16(offset, true); offset += 2;
                         const newPattern = createNewPattern(length);
-                        for (let t = 0; t < 16; t++) {
-                            for (let r = 0; r < length; r++) {
-                                const note = view.getUint8(offset++); const inst = view.getUint8(offset++);
-                                if (note !== 255) { newPattern.tracks[t][r] = { note, instrument: inst }; }
-                            }
-                        }
+                        for (let t = 0; t < 16; t++) { for (let r = 0; r < length; r++) { const note = view.getUint8(offset++); const inst = view.getUint8(offset++); if (note !== 255) { newPattern.tracks[t][r] = { note, instrument: inst }; } } }
                         state.patterns[index] = newPattern;
                     }
-                    
-                    state.currentPattern = state.sequence[0] || 0;
-                    state.currentRow = 0;
-                    state.currentSequencePos = 0;
-                    renderAll();
-                    statusBar.setText("Song loaded successfully.");
-
-                } catch (e) {
-                    statusBar.setText(`Error loading song: ${e.message}`);
-                    console.error(e);
-                }
+                    state.currentPattern = state.sequence[0] || 0; state.currentRow = 0; state.currentSequencePos = 0;
+                    renderAll(); statusBar.setText("Song loaded successfully.");
+                } catch (e) { statusBar.setText(`Error loading song: ${e.message}`); console.error(e); }
             };
             reader.readAsArrayBuffer(file);
         }
         
         async function handleSampleUpload(files) {
-            for (const file of files) {
+            for(const file of files) {
                 const reader = new FileReader();
-                reader.onload = ((theFile) => {
-                    return (event) => {
-                        parseWav(event.target.result).then(audioBuffer => {
-                            const nextSlot = instruments.findIndex(i => !i);
-                            const index = nextSlot !== -1 ? nextSlot : instruments.length;
-                            if (index >= 32) {
-                                statusBar.setText("Maximum instruments (32) reached.");
-                                return;
-                            }
-                            instruments[index] = { name: theFile.name.substring(0, 20), buffer: audioBuffer };
-                            renderAll();
-                        }).catch(err => {
-                            statusBar.setText(`Error loading ${theFile.name}: ${err.message}`);
-                            console.error(err);
-                        });
-                    };
-                })(file);
+                reader.onload = (event) => {
+                    parseWav(event.target.result).then(audioBuffer => {
+                        const nextSlot = instruments.findIndex(i => !i);
+                        const index = nextSlot !== -1 ? nextSlot : instruments.length;
+                        if(index >= 32) { statusBar.setText("Maximum instruments (32) reached."); return; }
+                        instruments[index] = { name: file.name.substring(0, 20), buffer: audioBuffer };
+                        renderAll();
+                    }).catch(err => { statusBar.setText(`Error loading ${file.name}: ${err.message}`); });
+                };
                 reader.readAsArrayBuffer(file);
             }
         }
+
         function handleScalaUpload(file) {
             if (!file) return; const reader = new FileReader();
             reader.onload = (e) => {
@@ -751,6 +698,7 @@
             };
             reader.readAsText(file);
         }
+
         async function parseWav(arrayBuffer) {
             if (!audioContext) initAudio();
             try { return await audioContext.decodeAudioData(arrayBuffer.slice(0)); }
@@ -782,7 +730,10 @@
             if (ratios.length === noteCount && (!ratios.includes(2) || Math.abs(ratios[ratios.length-1]-2) > 0.001)) ratios.push(2.0);
             return { name, ratios };
         }
+        
         async function exportAsWav() {
+            const filename = await showPrompt('Export WAV As', 'my-track.wav');
+            if (!filename) { statusBar.setText("Export cancelled."); return; }
             if (!audioContext) { statusBar.setText("AudioContext not ready for export."); return; }
             const secondsPerTick = (60.0 / state.bpm) / 4.0, totalRows = state.sequence.reduce((acc, i) => acc + (state.patterns[i] ? state.patterns[i].length : 0), 0);
             if (totalRows === 0) { statusBar.setText("Nothing to export."); return; }
@@ -790,23 +741,33 @@
             statusBar.setText(`Rendering ${totalDuration.toFixed(2)}s of audio...`);
             const offlineCtx = new OfflineAudioContext(2, totalSamples, audioContext.sampleRate);
             let currentTime = 0, globalRowCounter = 0;
-            for(const pIdx of state.sequence) {
-                const p = state.patterns[pIdx]; if (!p) continue;
-                for (let r = 0; r < p.length; r++) {
-                    for (let t = 0; t < state.trackCount; t++) { const n = p.tracks[t]?.[r]; if (n && n.note !== null && instruments[n.instrument]) { playSampleOffline(n.instrument, n.note, currentTime, offlineCtx); } }
-                    let tickDuration = secondsPerTick; const swingRatio = state.swingAmount / 100.0;
-                    if (globalRowCounter % 2 === 0) tickDuration = (secondsPerTick * 2) * swingRatio; else tickDuration = (secondsPerTick * 2) * (1.0 - swingRatio);
-                    currentTime += tickDuration; globalRowCounter++;
-                }
-            }
+            for(const pIdx of state.sequence) { const p = state.patterns[pIdx]; if (!p) continue; for (let r = 0; r < p.length; r++) { for (let t = 0; t < state.trackCount; t++) { const n = p.tracks[t]?.[r]; if (n && n.note !== null && instruments[n.instrument]) { playSampleOffline(n.instrument, n.note, currentTime, offlineCtx); } } let tickDuration = secondsPerTick; const swingRatio = state.swingAmount / 100.0; if (globalRowCounter % 2 === 0) tickDuration = (secondsPerTick * 2) * swingRatio; else tickDuration = (secondsPerTick * 2) * (1.0 - swingRatio); currentTime += tickDuration; globalRowCounter++; } }
             const renderedBuffer = await offlineCtx.startRendering(); statusBar.setText("Encoding to WAV...");
             setTimeout(() => {
                 const wavBlob = bufferToWav(renderedBuffer);
-                const a = document.createElement('a'); a.href = URL.createObjectURL(wavBlob); a.download = 'my-track.wav';
+                const a = document.createElement('a'); a.href = URL.createObjectURL(wavBlob); a.download = filename;
                 document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(a.href);
                 statusBar.setText("Export complete!");
             }, 100);
         }
+
+        async function exportAsMidi() {
+            const filename = await showPrompt('Export MIDI As', 'my-track.mid');
+            if (!filename) { statusBar.setText("Export cancelled."); return; }
+            statusBar.setText("Exporting to MIDI...");
+            const TPQN = 480, ticksPerRow = TPQN / 4;
+            function writeString(v, o, s) { for (let i=0;i<s.length;i++) v.setUint8(o+i, s.charCodeAt(i)); }
+            function encodeVLQ(v) { if(v===0) return new Uint8Array([0]); let b=[]; do { let byte=v&0x7F; v>>=7; if(b.length>0) byte|=0x80; b.unshift(byte); } while(v>0); return new Uint8Array(b); }
+            let trackChunks = []; const tempo = Math.round(60000000 / state.bpm);
+            trackChunks.push(new Uint8Array([...encodeVLQ(0), 0xFF, 0x51, 0x03, (tempo>>16)&0xFF, (tempo>>8)&0xFF, tempo&0xFF, ...encodeVLQ(0), 0xFF, 0x2F, 0x00]));
+            for (let t = 0; t < state.trackCount; t++) { let events = [], playingNote = null, globalRow = 0; state.sequence.forEach(pIdx => { const p = state.patterns[pIdx]; if(!p) return; for (let r = 0; r < p.length; r++) { const tick = globalRow * ticksPerRow; const note = p.tracks[t]?.[r]; if (playingNote && (!note || note.note !== playingNote.note)) { events.push({ tick, type: 'off', note: playingNote.note }); playingNote = null; } if (note && note.note !== null) { if(playingNote) { events.push({ tick, type: 'off', note: playingNote.note }); } events.push({ tick, type: 'on', note: note.note, vel: 90 }); playingNote = note; } globalRow++; }}); if (playingNote) events.push({ tick: globalRow*ticksPerRow, type: 'off', note: playingNote.note }); let trackData = [], lastTick = 0; events.sort((a,b)=>a.tick-b.tick); for(const e of events) { trackData.push(...encodeVLQ(e.tick - lastTick)); trackData.push(e.type==='on' ? 0x90|t : 0x80|t, e.note, e.type==='on' ? e.vel : 0); lastTick = e.tick; } trackData.push(...encodeVLQ(0), 0xFF, 0x2F, 0x00); trackChunks.push(new Uint8Array(trackData)); }
+            let len = 14; trackChunks.forEach(c=>len+=8+c.length); const buf=new ArrayBuffer(len), view=new DataView(buf); let o=0;
+            writeString(view,o,"MThd"); o+=4; view.setUint32(o,6); o+=4; view.setUint16(o,1); o+=2; view.setUint16(o,trackChunks.length); o+=2; view.setUint16(o,TPQN); o+=2;
+            trackChunks.forEach(c=>{ writeString(view,o,"MTrk"); o+=4; view.setUint32(o,c.length); o+=4; c.forEach(b=>view.setUint8(o++,b)); });
+            const blob = new Blob([view], {type:'audio/midi'}); const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=filename;
+            a.click(); URL.revokeObjectURL(a.href); statusBar.setText("MIDI export complete!");
+        }
+
         function playSampleOffline(instIdx, note, time, ctx) {
             if (!instruments[instIdx]) return;
             const source = ctx.createBufferSource(); source.buffer = instruments[instIdx].buffer;
@@ -824,34 +785,6 @@
             for (let i = 0; i < aBuffer.length; i++) for (let chan = 0; chan < numOfChan; chan++) { let s = Math.max(-1, Math.min(1, chans[chan][i])); s = s < 0 ? s * 0x8000 : s * 0x7FFF; view.setInt16(pos, s, true); pos += 2; }
             return new Blob([view], { type: 'audio/wav' });
         }
-        function exportAsMidi() {
-            statusBar.setText("Exporting to MIDI...");
-            const TPQN = 480, ticksPerRow = TPQN / 4;
-            function writeString(v, o, s) { for (let i=0;i<s.length;i++) v.setUint8(o+i, s.charCodeAt(i)); }
-            function encodeVLQ(v) { if(v===0) return new Uint8Array([0]); let b=[]; do { let byte=v&0x7F; v>>=7; if(b.length>0) byte|=0x80; b.unshift(byte); } while(v>0); return new Uint8Array(b); }
-            let trackChunks = []; const tempo = Math.round(60000000 / state.bpm);
-            trackChunks.push(new Uint8Array([...encodeVLQ(0), 0xFF, 0x51, 0x03, (tempo>>16)&0xFF, (tempo>>8)&0xFF, tempo&0xFF, ...encodeVLQ(0), 0xFF, 0x2F, 0x00]));
-            for (let t = 0; t < state.trackCount; t++) {
-                let events = [], playingNote = null, globalRow = 0;
-                state.sequence.forEach(pIdx => { const p = state.patterns[pIdx]; if(!p) return; for (let r = 0; r < p.length; r++) {
-                    const tick = globalRow * ticksPerRow; const note = p.tracks[t]?.[r];
-                    if (playingNote && (!note || note.note !== playingNote.note)) { events.push({ tick, type: 'off', note: playingNote.note }); playingNote = null; }
-                    if (note && note.note !== null) { if(playingNote) { events.push({ tick, type: 'off', note: playingNote.note }); } events.push({ tick, type: 'on', note: note.note, vel: 90 }); playingNote = note; }
-                    globalRow++;
-                }});
-                if (playingNote) events.push({ tick: globalRow*ticksPerRow, type: 'off', note: playingNote.note });
-                let trackData = [], lastTick = 0; events.sort((a,b)=>a.tick-b.tick);
-                for(const e of events) { trackData.push(...encodeVLQ(e.tick - lastTick)); trackData.push(e.type==='on' ? 0x90|t : 0x80|t, e.note, e.type==='on' ? e.vel : 0); lastTick = e.tick; }
-                trackData.push(...encodeVLQ(0), 0xFF, 0x2F, 0x00); trackChunks.push(new Uint8Array(trackData));
-            }
-            let len = 14; trackChunks.forEach(c=>len+=8+c.length); const buf=new ArrayBuffer(len), view=new DataView(buf); let o=0;
-            writeString(view,o,"MThd"); o+=4; view.setUint32(o,6); o+=4; view.setUint16(o,1); o+=2; view.setUint16(o,trackChunks.length); o+=2; view.setUint16(o,TPQN); o+=2;
-            trackChunks.forEach(c=>{ writeString(view,o,"MTrk"); o+=4; view.setUint32(o,c.length); o+=4; c.forEach(b=>view.setUint8(o++,b)); });
-            const blob = new Blob([view], {type:'audio/midi'}); const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='my-track.mid';
-            a.click(); URL.revokeObjectURL(a.href); statusBar.setText("MIDI export complete!");
-        }
-
-        // --- PWA SETUP ---
         function setupPWA() {
             const fileName=window.location.pathname.split('/').pop()||'index.html'; const manifest={"name":"Retro Web Tracker","short_name":"WebTracker","start_url":".","display":"standalone","background_color":"#1a1a2e","theme_color":"#e94560","icons":[{"src":"https://placehold.co/192x192/e94560/FFFFFF/png?text=Tracker","sizes":"192x192","type":"image/png"},{"src":"https://placehold.co/512x512/e94560/FFFFFF/png?text=Tracker","sizes":"512x512","type":"image/png"}]};
             const manifestURL = 'data:application/manifest+json;base64,'+btoa(unescape(encodeURIComponent(JSON.stringify(manifest))));
