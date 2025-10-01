@@ -27,12 +27,24 @@
         
         <!-- Sticky Header Wrapper -->
         <div class="sticky top-0 z-50 bg-gray-900 space-y-4 pb-4">
-            <h1 class="text-2xl sm:text-3xl font-bold text-center text-pink-500 pt-4">Retro Web Tracker</h1>
+            <div class="flex justify-between items-center">
+                <h1 class="text-2xl sm:text-3xl font-bold text-center text-pink-500 pt-4 flex-grow">Retro Web Tracker</h1>
+                <button id="toggle-controls-btn" class="sm:hidden p-2 mr-2 bg-blue-500 text-white rounded">
+                    <svg id="toggle-icon-open" xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16m-7 6h7" />
+                    </svg>
+                    <svg id="toggle-icon-close" xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 hidden" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                </button>
+            </div>
 
-            <!-- Web Components will be placed here -->
-            <control-panel></control-panel>
-            <structure-controls></structure-controls>
-            <effects-panel></effects-panel>
+            <!-- Collapsible Controls Container -->
+            <div id="controls-container" class="hidden sm:block space-y-4">
+                <control-panel></control-panel>
+                <structure-controls></structure-controls>
+                <effects-panel></effects-panel>
+            </div>
         </div>
 
 
@@ -366,6 +378,10 @@
         const patternEditorView = document.querySelector('pattern-editor-view');
         const statusBar = document.querySelector('status-bar');
         const songFileInput = document.getElementById('song-file-input');
+        const toggleControlsBtn = document.getElementById('toggle-controls-btn');
+        const controlsContainer = document.getElementById('controls-container');
+        const toggleIconOpen = document.getElementById('toggle-icon-open');
+        const toggleIconClose = document.getElementById('toggle-icon-close');
 
         // --- RENDER/UPDATE DISPATCHER ---
         function renderAll() {
@@ -441,6 +457,12 @@
             if (e.target.files.length > 0) {
                 loadSong(e.target.files[0]);
             }
+        });
+
+        toggleControlsBtn.addEventListener('click', () => {
+            controlsContainer.classList.toggle('hidden');
+            toggleIconOpen.classList.toggle('hidden');
+            toggleIconClose.classList.toggle('hidden');
         });
 
         document.addEventListener('keydown', e => {
@@ -712,5 +734,6 @@
     </script>
 </body>
 </html>
+
 
 
